@@ -1,0 +1,10 @@
+peft 
+transformers 
+bitsandbytes 
+accelerate 
+datasets 
+wandb 
+trl 
+flash-attn 
+sentencepiece
+torch>=2
