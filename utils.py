@@ -62,7 +62,7 @@ class ModelPredictionGenerator:
             "repetition_penalty": 1.18,
             "top_k": 40,
             "do_sample": True,
-            "max_new_tokens": 500,
+            # "max_new_tokens": 500,
         }
 
     def __init__(self, model, tokenizer):
@@ -174,7 +174,7 @@ class ModelPredictionGenerator:
             prompts = self.questions_to_prompts( input_data )
         return prompts
 
-    def run(self, input_data, generation_config=None, batch_size=64, max_new_tokens=None):
+    def run(self, input_data, generation_config=None, batch_size=64, max_new_tokens=500):
         """  generates prompts from datasets.Dataset or list of strings, generates answers using batched inference  """
 
         generation_config = ModelPredictionGenerator.DEFAULT_GEN_CONFIG if generation_config is None else generation_config
