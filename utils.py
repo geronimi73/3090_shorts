@@ -39,20 +39,18 @@ class EmbeddingModelWrapper():
 
     def get_similarities(self, x, y=None):
         assert isinstance(x, torch.Tensor), f"x has to be a Tensor but is {type(x)}"
-
+    
         if y is None:
-            num_samples=x.shape[0]
-            similarities = torch.zeros(num_samples, num_samples)
-            for row in tqdm(range(num_samples)):
-                similarities[row, 0:row+1]=self.cos(x[row].repeat(row+1,1), x[0:row+1])#.tolist()
-
-            similarities = (similarities + similarities.T)
-            similarities.diagonal()[:] = 1
-
-            return similarities
-        else:            
-            assert isinstance(y, torch.Tensor), f"y has to be a Tensor but is {type(y)}"
-            return self.cos(x,y).cpu().tolist()
+            y = x
+        if x.dim()==y.dim()==1:
+            return self.cos(x[None, :],y[None, :]).cpu().tolist()        
+    
+        x_num, y_num = x.shape[0], y.shape[0]
+        similarities = torch.zeros(x_num, y_num)
+        for row in tqdm(range(x_num)):
+            similarities[row, :]=self.cos(x[row].repeat(y_num,1), y)
+    
+        return similarities
 
 class ModelPredictionGenerator:
     # llama-precise as default, from https://github.com/oobabooga/text-generation-webui/blob/main/presets/LLaMA-Precise.yaml
@@ -169,9 +167,10 @@ class ModelPredictionGenerator:
         assert isinstance(input_data, Dataset) or isinstance(input_data, list)
 
         if isinstance(input_data, Dataset):
-            prompts = self.messages_to_prompts( input_data )
+            prompts = self.messages_to_prompts(input_data)
         else:
-            prompts = self.questions_to_prompts( input_data )
+            # list of strings hopefully
+            prompts = self.questions_to_prompts(input_data)
         return prompts
 
     def run(self, input_data, generation_config=None, batch_size=64, max_new_tokens=500):
