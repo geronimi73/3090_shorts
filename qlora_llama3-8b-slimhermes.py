@@ -25,8 +25,27 @@ model = AutoModelForCausalLM.from_pretrained(
     attn_implementation = "flash_attention_2",  
     use_cache = False,
 )
-tokenizer = AutoTokenizer.from_pretrained(tokenizerpath)
+
+tokenizer = AutoTokenizer.from_pretrained(tokenizerpath, use_fast=False)
+
+## old
+# template = llama3.bos + ChatML + llama3.eos; if no bos/eos present -> grad=nan 
+# tokenizer.chat_template = "{{ '<|begin_of_text|>' }}{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{{ '<|end_of_text|>' }}"
+
+# ChatML template
 tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
+
+# set embeddings of <|im_start|>=128002 and <|im_end|>=128003 to avg. of all other tokens= id<128000 (from artidoro/qlora: smart embedding resize)
+tokens_ids = [128_002, 128_003]
+input_embeddings_data = model.get_input_embeddings().weight.data
+output_embeddings_data = model.get_output_embeddings().weight.data
+
+input_embeddings_avg = input_embeddings_data[0:128_000].mean(dim=0, keepdim=True)
+output_embeddings_avg = output_embeddings_data[0:128_000].mean(dim=0, keepdim=True)
+
+for t in tokens_ids:
+    input_embeddings_data[t] = input_embeddings_avg
+    output_embeddings_data[t] = output_embeddings_avg
 
 dataset = load_dataset("g-ronimo/SlimHermes")
 
@@ -64,8 +83,8 @@ trainer = SFTTrainer(
         mlm = False),
     max_seq_length = max_seq_length,
     peft_config = LoraConfig(
-        r=16, 
-        lora_alpha=16, 
+        r=32, 
+        lora_alpha=32, 
         target_modules = "all-linear", 
         modules_to_save = ["lm_head", "embed_tokens"]
     ),
@@ -74,21 +93,22 @@ trainer = SFTTrainer(
     dataset_num_proc = 8,
 )
 
-class EvaluateFirstStepCallback(TrainerCallback):
-    def on_step_end(self, args, state, control, **kwargs):
-        if state.global_step == 1:
-            control.should_evaluate = True
-trainer.add_callback(EvaluateFirstStepCallback())
+## Eval after 1st step to check if eval possible w/o OOM
+# class EvaluateFirstStepCallback(TrainerCallback):
+#     def on_step_end(self, args, state, control, **kwargs):
+#         if state.global_step == 1:
+#             control.should_evaluate = True
+# trainer.add_callback(EvaluateFirstStepCallback())
 
-## Check correct tokenization of samples
-# check_samples = 1
-# for i in range(check_samples):
-#     print(f"SAMPLE #{i}")
-#     input_ids, attention_mask, labels = trainer.data_collator([trainer.train_dataset[0]]).values()
-#     print(tokenizer.decode(input_ids[0]))  
-#     for token, label in zip(input_ids[0], labels[0]):
-#         print(f"{token.item()}, '{tokenizer.decode(token)}', {label.item()}")  
-#     print()
+## Check correct tokenization and labeling of samples
+check_samples = 1
+for i in range(check_samples):
+    print(f"SAMPLE #{i}")
+    input_ids, attention_mask, labels = trainer.data_collator([trainer.train_dataset[0]]).values()
+    print(tokenizer.decode(input_ids[0]))  
+    for token, label in zip(input_ids[0], labels[0]):
+        print(f"{token.item()}, '{tokenizer.decode(token)}', {label.item()}")  
+    print()
 
 if accelerator.is_main_process:
     wandb.init(
