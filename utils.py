@@ -3,6 +3,7 @@ from tqdm import tqdm
 from accelerate import Accelerator
 from accelerate.utils import gather_object
 from datasets import Dataset
+from tqdm import tqdm
 import torch, torch.nn as nn, gc
 import time
 
@@ -221,3 +222,68 @@ class ModelPredictionGeneratorDistributed(ModelPredictionGenerator):
         for i in range(len(results)):
             results[i]["GPU"] = self.accelerator.process_index 
         return gather_object(results)
+
+class SingleChoiceEval:
+    DEFAULT_TEMPLATE = "{question}\n{choices}\nAnswer:"
+    LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    
+    def __init__(self, dataset, template=DEFAULT_TEMPLATE, key_question="question", key_choices="choices", key_answer="answer"):
+        self.dataset = dataset
+        self.template = DEFAULT_TEMPLATE if template is None else template
+        self.key_question = key_question
+        self.key_choices = key_choices
+        self.key_answer = key_answer
+        self.answer_is_int = type(dataset[0][key_answer]) == int
+        if type(self.key_choices) == list:
+            self.num_choices = len(self.key_choices)
+        else:
+            self.num_choices = len(dataset[0][self.key_choices])
+
+    def get_choices(self, entry):
+        if type(self.key_choices) == list:
+            return [entry[k] for k in self.key_choices]
+        else:
+            return entry[self.key_choices]    
+
+    def get_answer(self, entry):
+        if self.answer_is_int:
+            # answer is int
+            return entry[self.key_answer]
+        elif not self.answer_is_int and entry[self.key_answer] in self.LETTERS:
+            # answer is a string A-Z 
+            return self.LETTERS.index(entry[self.key_answer])
+        else:
+            return None
+
+    def format_entry(self, entry, include_answer = True):
+        template = self.template
+
+        choices = [ f"{self.LETTERS[i]}. {choice}" for i, choice in enumerate(self.get_choices(entry)) ]
+        choices =  "\n".join(choices)
+        text = template.format(choices = choices, question = entry[self.key_question])
+        
+        if include_answer:
+            text += f" {self.LETTERS[self.get_answer(entry)]}"
+        return text
+
+    def calc_accuracy(self, model, tokenizer, batch_size = 8):
+        choices_tok = [ tokenizer(self.LETTERS[i], add_special_tokens = False)["input_ids"][-1] for i in range(self.num_choices) ]
+        questions = [self.format_entry(entry, include_answer = False) for entry in self.dataset]
+        batches = [questions[i:i + batch_size] for i in range(0, len(questions), batch_size)]  
+        
+        total, correct = 0, 0    
+        with tqdm(total = len(batches)) as pbar:
+            for batch_no, batch in enumerate(batches):
+                pbar.update()
+                batch_tok = tokenizer(batch, return_tensors = "pt", padding = True).to("cuda")
+    
+                with torch.no_grad():
+                    batch_logits = model(**batch_tok).logits
+                    batch_logits.to("cpu")
+                    
+                for i, logits in enumerate(batch_logits):
+                    model_choice = torch.argmax(logits[-1][choices_tok]).item()  # -1 is last logit, choices_tok = logits for A, B, C, D
+                    correct += 1 if model_choice == self.get_answer(self.dataset[total]) else 0
+                    total += 1
+                pbar.set_postfix_str(f"acc={round(correct/total*100,2)}")
+        return total, correct, correct / total * 100
