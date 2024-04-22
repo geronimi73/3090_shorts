@@ -6,13 +6,14 @@ import torch, uuid, wandb
 from accelerate import Accelerator
 
 set_seed(42)
+
 accelerator = Accelerator()
-run_id = f"llama3-8b-slimhermes-{str(uuid.uuid4())}"
-modelpath = "../models/llama3-8b"
-tokenizerpath = "../models/llama3-8b-chatML-tokenizer" # slightly modified tokenizer: 3 reserved tokens -> im_start, im_end, pad
+run_id = f"llama3-8b-slimhermes-H100-{str(uuid.uuid4())}"
+modelpath = "meta-llama/Meta-Llama-3-8B"
+tokenizerpath = "llama3-8b-chatML-tokenizer" # slightly modified tokenizer: 3 reserved tokens -> im_start, im_end, pad
 bs, ga = (1, 8)  # batch size, grad. acc. steps
-epochs = 4
-lr = 1e-5
+epochs = 8
+lr = 2e-5
 max_seq_length = 1800
 
 model = AutoModelForCausalLM.from_pretrained(
@@ -24,8 +25,8 @@ model = AutoModelForCausalLM.from_pretrained(
     ),
     attn_implementation = "flash_attention_2",  
     use_cache = False,
+    cache_dir = "./cache"
 )
-
 tokenizer = AutoTokenizer.from_pretrained(tokenizerpath, use_fast=False)
 
 ## old
@@ -56,7 +57,7 @@ training_arguments = TrainingArguments(
     evaluation_strategy = "steps",
     label_names = ["labels"],
     per_device_train_batch_size = bs,
-    per_device_eval_batch_size = 2,
+    per_device_eval_batch_size = 8,
     gradient_accumulation_steps = ga,
     save_steps = steps_per_epoch,
     eval_steps = steps_per_epoch,
@@ -93,22 +94,22 @@ trainer = SFTTrainer(
     dataset_num_proc = 8,
 )
 
-## Eval after 1st step to check if eval possible w/o OOM
+# Eval after 1st step to check if eval possible w/o OOM
 # class EvaluateFirstStepCallback(TrainerCallback):
 #     def on_step_end(self, args, state, control, **kwargs):
 #         if state.global_step == 1:
 #             control.should_evaluate = True
 # trainer.add_callback(EvaluateFirstStepCallback())
 
-## Check correct tokenization and labeling of samples
-check_samples = 1
-for i in range(check_samples):
-    print(f"SAMPLE #{i}")
-    input_ids, attention_mask, labels = trainer.data_collator([trainer.train_dataset[0]]).values()
-    print(tokenizer.decode(input_ids[0]))  
-    for token, label in zip(input_ids[0], labels[0]):
-        print(f"{token.item()}, '{tokenizer.decode(token)}', {label.item()}")  
-    print()
+# Check correct tokenization and labeling of samples
+# check_samples = 1
+# for i in range(check_samples):
+#     print(f"SAMPLE #{i}")
+#     input_ids, attention_mask, labels = trainer.data_collator([trainer.train_dataset[0]]).values()
+#     print(tokenizer.decode(input_ids[0]))  
+#     for token, label in zip(input_ids[0], labels[0]):
+#         print(f"{token.item()}, '{tokenizer.decode(token)}', {label.item()}")  
+#     print()
 
 if accelerator.is_main_process:
     wandb.init(
