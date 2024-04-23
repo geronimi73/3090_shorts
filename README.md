@@ -52,12 +52,12 @@ model = AutoModelForCausalLM.from_pretrained(
     attn_implementation = "flash_attention_2",
 )
 tokenizer = AutoTokenizer.from_pretrained(modelpath, use_fast=False) 
+tokenizer.pad_token = tokenizer.unk_token
+tokenizer.padding_side = "left"
 
 dataset = load_dataset("cais/mmlu", "all")
 
 from utils import SingleChoiceEval
-tokenizer.pad_token = tokenizer.unk_token
-tokenizer.padding_side = "left"
 
 sce = SingleChoiceEval(dataset["dev"])
 total, correct, acc = sce.calc_accuracy(
@@ -66,18 +66,48 @@ total, correct, acc = sce.calc_accuracy(
 	batch_size = 16
 )
 ```
-Output
+Output TinyLlama
 ```
 (285, 66, 23.157894736842106)
 ```
+### PIQA 5-shot
+```python
+# load model and tokenizer just like before
+...
+
+from utils import SingleChoiceEval
+from datasets import load_dataset
+
+tokenizer.pad_token = tokenizer.unk_token
+tokenizer.padding_side = "left"
+
+dataset = load_dataset("piqa")
+
+sce = SingleChoiceEval(
+    dataset["validation"], 
+    key_choices = ['sol1', 'sol2'],
+    key_question = "goal",
+    key_answer = "label"
+)
+total, correct, acc = sce.calc_accuracy(
+    model, 
+    tokenizer, 
+    few_shots = dataset["train"].select(range(5)),
+    batch_size = 16,
+)
+```
+Output Mistral-0.2 (base):
+```
+(1838, 1474, 80.19586507072906)
+```
 ###  Kaggle's LLM Science Exam
 ```python
-# load model and tokenizer just like with MMLU
+# load model and tokenizer just like before
 ...
 
 # this part is new
 from datasets import load_dataset
-from shorts.utils import SingleChoiceEval
+from utils import SingleChoiceEval
 
 dataset = load_dataset("g-ronimo/kaggle_llm_science_exam")
 
@@ -95,7 +125,7 @@ total, correct, acc = sce.calc_accuracy(
     batch_size = 16
 )
 ```
-Output
+Output TinyLlama
 ```
 (600, 135, 22.5)
 ```
