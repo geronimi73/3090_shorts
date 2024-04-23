@@ -266,9 +266,30 @@ class SingleChoiceEval:
             text += f" {self.LETTERS[self.get_answer(entry)]}"
         return text
 
-    def calc_accuracy(self, model, tokenizer, batch_size = 8):
-        choices_tok = [ tokenizer(self.LETTERS[i], add_special_tokens = False)["input_ids"][-1] for i in range(self.num_choices) ]
-        questions = [self.format_entry(entry, include_answer = False) for entry in self.dataset]
+    def calc_accuracy(self, model, tokenizer, batch_size = 8, few_shots = None):
+        choices_tok = [ 
+            tokenizer(self.LETTERS[i], add_special_tokens = False)["input_ids"][-1] 
+            for i in range(self.num_choices) 
+        ]
+        
+        if few_shots is not None:
+            few_shot_prompt = []
+            for entry in few_shots:
+                few_shot_prompt.append(self.format_entry(entry, include_answer = True))
+            few_shot_prompt = "\n\n".join(few_shot_prompt) + "\n\n"
+        else:
+            few_shot_prompt = ""
+        
+        questions = [ 
+            few_shot_prompt + self.format_entry(entry, include_answer = False) 
+            for entry in self.dataset
+        ]
+
+        # debug
+        for i in range(3):
+            print(f"Question #{i}")
+            print(questions[i], "\n")
+            
         batches = [questions[i:i + batch_size] for i in range(0, len(questions), batch_size)]  
         
         total, correct = 0, 0    
@@ -279,7 +300,7 @@ class SingleChoiceEval:
     
                 with torch.no_grad():
                     batch_logits = model(**batch_tok).logits
-                    batch_logits.to("cpu")
+                    # batch_logits.to("cpu")
                     
                 for i, logits in enumerate(batch_logits):
                     model_choice = torch.argmax(logits[-1][choices_tok]).item()  # -1 is last logit, choices_tok = logits for A, B, C, D
