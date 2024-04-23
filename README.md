@@ -35,7 +35,7 @@ embds = em.get_embeddings(words)
 similarities = em.get_similarities(embds)
 ``` 
 ## SingleChoiceEval
-Calculate accuracy of a given model on a single-choice dataset
+Calculate accuracy of a given model on a single-choice dataset.
 ### MMLU
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
