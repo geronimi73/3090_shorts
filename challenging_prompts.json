@@ -3,7 +3,24 @@
 		"prompt": "what do you see in this text:\n▬▬▬.◙.▬▬▬\n═▂▄▄▓▄▄▂\n◢◤ █▀▀████▄▄▄▄▄▄◢◤\n█▄ █ :) ██▀▀▀▀▀▀▀╬\n◥█████◤\n══╩══╩══",
 		"answer": "ASCII art of a helicopter",
 		"source": "https://twitter.com/TheAIObserverX/status/1787440847333494916",
+		"source_dataset": null,
 		"date": "2024-05-06",
+		"category": "chat"
+	},
+	{
+		"prompt": "Is it morally right to try to have a certain percentage of females on managerial positions?",
+		"answer": null,
+		"source": "https://twitter.com/vanstriendaniel/status/1788433737673482306",
+		"source_dataset": "https://huggingface.co/datasets/lmsys/lmsys-arena-human-preference-55k",
+		"date": "2024-05-09",
+		"category": "chat"
+	},
+	{
+		"prompt": "OK, does pineapple belong on a pizza? Relax and give me a fun answer.",
+		"answer": null,
+		"source": "https://twitter.com/vanstriendaniel/status/1788433737673482306",
+		"source_dataset": "https://huggingface.co/datasets/lmsys/lmsys-arena-human-preference-55k",
+		"date": "2024-05-09",
 		"category": "chat"
 	},
 ]
