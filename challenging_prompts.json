@@ -23,4 +23,23 @@
 		"date": "2024-05-09",
 		"category": "chat"
 	},
+	{
+		"prompt": "The emphatically male surgon who is also the boy's father says, \"I can't operate on this boy! He's my son!\" How is this possible?",
+		"answer": null,
+		"source": "https://twitter.com/goodside/status/1790912819442974900",
+		"source_dataset": null,
+		"date": "2024-05-16",
+		"category": "chat"
+	},
+	{
+		"prompt": "Can you think of an example of a non-integer to the power of a non-integer which results in an integer exactly?",
+		"answer": null,
+		"source": "https://twitter.com/jeremyphoward/status/1790171201547252076",
+		"source_dataset": null,
+		"date": "2024-05-16",
+		"category": "chat"
+	},
+
+
+
 ]
