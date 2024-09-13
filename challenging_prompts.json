@@ -1,5 +1,21 @@
 [
 	{
+		"prompt": "How many words are in your response to this prompt?",
+		"answer": null,
+		"source": "https://x.com/MatthewBerman/status/1834358933785554989",
+		"source_dataset": null,
+		"date": "2024-09-30",
+		"category": "chat"
+	},
+	{
+		"prompt": "How many letters are in your response to this prompt?",
+		"answer": null,
+		"source": "https://x.com/MatthewBerman/status/1834358933785554989",
+		"source_dataset": null,
+		"date": "2024-09-30",
+		"category": "chat"
+	},
+	{
 		"prompt": "what do you see in this text:\n▬▬▬.◙.▬▬▬\n═▂▄▄▓▄▄▂\n◢◤ █▀▀████▄▄▄▄▄▄◢◤\n█▄ █ :) ██▀▀▀▀▀▀▀╬\n◥█████◤\n══╩══╩══",
 		"answer": "ASCII art of a helicopter",
 		"source": "https://twitter.com/TheAIObserverX/status/1787440847333494916",
