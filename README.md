@@ -1,8 +1,8 @@
-# Notebooks for training/inference `nb_*`
-minimal scripts, commented and self-explanatory
+# 3090 shorts
+A bunch of minimal notebooks and scripts I use for training and inference, designed to run on NVIDIA GPUs with 24 GB VRAM like a RTX 3090 or 4090.
 
-# Tools in `utils.py`
-## ModelPredictionGenerator
+## Tools in `utils.py`
+### ModelPredictionGenerator
 Little helper for batch inference, see `nb_batch-inference.ipynb` for usage or this:
 
 ```python
@@ -22,7 +22,7 @@ results = generator.run(
 ### ModelPredictionGeneratorDistributed
 Same as `ModelPredictionGenerator` but for multi-GPU inference with HF accelerate.
 
-## EmbeddingModelWrapper
+### EmbeddingModelWrapper
 Calculate embedding vectors and cosine similarities of a list of strings; default embedding model is `sentence-transformers/all-mpnet-base-v2`.
 
 ```python
@@ -34,9 +34,10 @@ embds = em.get_embeddings(words)
 
 similarities = em.get_similarities(embds)
 ``` 
-## SingleChoiceEval
+### SingleChoiceEval
 Calculate accuracy of a given model on a single-choice dataset.
-### MMLU
+
+**MMLU**
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
@@ -70,7 +71,8 @@ Output TinyLlama
 ```
 (285, 66, 23.157894736842106)
 ```
-### PIQA 5-shot
+
+**PIQA 5-shot**
 ```python
 # load model and tokenizer just like before
 ...
@@ -100,7 +102,8 @@ Output Mistral-0.2 (base):
 ```
 (1838, 1474, 80.19586507072906)
 ```
-###  Kaggle's LLM Science Exam
+
+**Kaggle's LLM Science Exam**
 ```python
 # load model and tokenizer just like before
 ...
