@@ -25,7 +25,7 @@ def process(rank, is_master, world_size):
     debug = True
     batch_size = 16
     num_samples = 200
-    captioningf = batch_caption_qwenvlm
+    captioningf = batch_caption_moondream
 
     # Suppress tokenizers warning
     os.environ["TOKENIZERS_PARALLELISM"] = "false"

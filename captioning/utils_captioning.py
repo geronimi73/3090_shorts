@@ -36,7 +36,7 @@ def load_smolvlm(device="cuda", dtype=torch.bfloat16):
         smolvlm_model = AutoModelForImageTextToText.from_pretrained(
             repo, 
             torch_dtype=dtype,
-            # _attn_implementation="flash_attention_2"
+            _attn_implementation="flash_attention_2"
         ).to(device)
 
     return smolvlm_model, smolvlm_processor
