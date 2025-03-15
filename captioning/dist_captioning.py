@@ -23,7 +23,7 @@ def process(rank, is_master, world_size):
     device = "cuda"
     dtype = torch.bfloat16
     debug = True
-    batch_size = 8
+    batch_size = 16
     num_samples = 200
     captioningf = batch_caption_qwenvlm
 
