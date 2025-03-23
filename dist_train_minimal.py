@@ -42,20 +42,17 @@ def ddp_gather(o):
     return o_all
 
 
-def train(ddp=True):
-    if ddp:
-        dist.init_process_group(backend='nccl')
+def train():
+    dist.init_process_group(backend='nccl')
 
     seed = 42
     torch.manual_seed(seed)
 
-    if ddp:
-        is_master = dist.get_rank() == 0  
-        world_size = dist.get_world_size()
-        local_rank = dist.get_rank()
-        torch.cuda.set_device(local_rank)
-    else:
-        is_master, world_size, local_rank = True, 1, 0
+    is_master = dist.get_rank() == 0  
+    world_size = dist.get_world_size()
+    local_rank = dist.get_rank()
+    torch.cuda.set_device(local_rank)
+
     num_epochs = 3
     lr = 1e-4
     log_steps = 20
@@ -64,8 +61,7 @@ def train(ddp=True):
     criterion = nn.CrossEntropyLoss().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr)
 
-    if ddp:
-        model = DistributedDataParallel(model, device_ids=[local_rank])
+    model = DistributedDataParallel(model, device_ids=[local_rank])
 
     train_dataset = MNIST(
         root = './data', train = True, transform = transforms.ToTensor(), download = True
@@ -74,21 +70,14 @@ def train(ddp=True):
     batch_size = 256
     gradient_accumulation_steps = 1
 
-    if ddp:
-        train_sampler = DistributedSampler(
-            train_dataset, shuffle = False, seed = seed
-        )
-        train_loader = DataLoader(
-            dataset = train_dataset, batch_size = batch_size, sampler = train_sampler,
-            shuffle = False, 
-            num_workers = 0, pin_memory = True,
-        )
-    else:
-        train_loader = DataLoader(
-            dataset = train_dataset, batch_size = batch_size,
-            shuffle = False, 
-            num_workers = 0, pin_memory = True,
-        )
+    train_sampler = DistributedSampler(
+        train_dataset, shuffle = False, seed = seed
+    )
+    train_loader = DataLoader(
+        dataset = train_dataset, batch_size = batch_size, sampler = train_sampler,
+        shuffle = False, 
+        num_workers = 0, pin_memory = True,
+    )
 
     if is_master: wandb.init(project="DDP_GRAD-ACC", name=f"GLOB-BS-{batch_size*gradient_accumulation_steps*world_size}_BS-{batch_size}_GAS-{gradient_accumulation_steps}_{world_size}-GPUs")
 
@@ -100,8 +89,7 @@ def train(ddp=True):
     for epoch in range(num_epochs):
         accumulation_step = 0
 
-        if ddp:
-            train_sampler.set_epoch(epoch)
+        train_sampler.set_epoch(epoch)
 
         for batch_idx, (images, labels) in enumerate(train_loader):
             images = images.cuda(non_blocking=True)
@@ -110,7 +98,7 @@ def train(ddp=True):
             sample_count += len(images)
             accumulation_step += 1
 
-            if ddp and gradient_accumulation_steps > 1 and accumulation_step % gradient_accumulation_steps != 0:
+            if gradient_accumulation_steps > 1 and accumulation_step % gradient_accumulation_steps != 0:
                 context = model.no_sync()
             else:
                 context = contextlib.nullcontext()
@@ -139,8 +127,6 @@ def train(ddp=True):
                     wandb.log(metrics)
                     print(", ".join([f"{k}: {round(metrics[k],2) if isinstance(metrics[k], float) else metrics[k]}" for k in metrics]))
                 loss_cum = 0
-            else: 
-                pass
 
     if is_master: 
         wandb.finish()
@@ -153,8 +139,7 @@ def train(ddp=True):
         print(f"final loss: {loss.item()}")
 
 
-    if ddp:
-        dist.destroy_process_group()
+    dist.destroy_process_group()
 
 if __name__ == '__main__':
     train()
