@@ -18,6 +18,11 @@ def dist_init():
 def dist_destroy():
     dist.destroy_process_group()
 
+def dist_gather(o):
+    o_all = [None for _ in range(dist.get_world_size())]
+    dist.all_gather_object(o_all, o)
+    return o_all
+
 def get_rank(): return dist.get_rank()
 def get_world_size(): return dist.get_world_size()
 def is_master(): return get_rank() == 0
@@ -26,7 +31,7 @@ def log_init(config):
     if is_master():
         wandb.init(
             project = "DDP-minimal", 
-            name = f"GLOB-BS-{config.bs * config.gas}_BS-{config.bs}_GA-{config.gas}"
+            name = f"GLOB-BS-{config.bs * config.gas * get_world_size()}_BS-{config.bs}_GA-{config.gas}_GPUS-{get_world_size()}"
         ).log_code(".", include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb") or path.endswith(".json"))
 
 def log_finish():
@@ -34,9 +39,12 @@ def log_finish():
         wandb.finish()
 
 def log(step, loss):
+    loss_all = dist_gather(loss)
+    loss_avg = sum(loss_all) / len(loss_all)
+
     if is_master():
-        print(f"Step {step} Loss {loss}")
-        wandb.log({"step": step, "loss_train": loss})    
+        print(f"Step {step} Loss {loss_avg}")
+        wandb.log({"step": step, "loss_train": loss_avg})    
 
 def get_dataloaders(bs_train=32, bs_test=32):
     transform=transforms.Compose([
@@ -73,7 +81,7 @@ device = "cuda"
 train_config = SimpleNamespace(
     log_interval = 50,
     lr = 0.0001,
-    bs = 32,
+    bs = 16,
     gas = 1,
 )
 
