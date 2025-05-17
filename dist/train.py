@@ -55,13 +55,7 @@ def get_dataloaders(bs_train=32, bs_test=32):
     dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform)
     dataloader_train = DataLoader(
         dataset_train,
-        sampler = DistributedSampler(
-            dataset_train, 
-            # remove me
-            rank=get_rank(),
-            num_replicas=get_world_size(),            
-            shuffle=False
-        ),
+        sampler = DistributedSampler(dataset_train, shuffle=False),
         batch_size = bs_train,
         shuffle = False,
     )
@@ -75,7 +69,6 @@ def get_dataloaders(bs_train=32, bs_test=32):
 
     return dataloader_train, dataloader_test
 
-dist_init()
 
 device = "cuda"
 train_config = SimpleNamespace(
@@ -85,11 +78,13 @@ train_config = SimpleNamespace(
     gas = 1,
 )
 
-# micro_batch_size = 8
-# train_config.gas = train_config.bs // micro_batch_size
-# train_config.bs = train_config.bs // train_config.gas
+micro_batch_size = 8
+train_config.gas = train_config.bs // micro_batch_size
+train_config.bs = train_config.bs // train_config.gas
 
 set_seed(42)
+dist_init()
+log_init(train_config)
 
 dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
 
@@ -99,8 +94,6 @@ model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
 
 optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
 
-log_init(train_config)
-
 step, batch_loss = 0, 0
 
 for batch_idx, (data, target) in enumerate(dataloader_train):
@@ -109,12 +102,10 @@ for batch_idx, (data, target) in enumerate(dataloader_train):
     if ( (batch_idx+1) % train_config.gas == 0 
         or batch_idx + 1 == len(dataloader_train) ):
         step_optimizer = True
-        context = contextlib.nullcontext()
     else:
         step_optimizer = False
-        context = model.no_sync()
     
-    with context:
+    with model.no_sync() if not step_optimizer else contextlib.nullcontext():
         output = model(data.to(device))
     loss = F.nll_loss(output, target.to(device))
     # divide loss by number of gradient acc. steps
@@ -129,7 +120,8 @@ for batch_idx, (data, target) in enumerate(dataloader_train):
         optimizer.zero_grad()
 
         # Log step
-        if step % train_config.log_interval == 0: log(step, batch_loss)
+        if step % train_config.log_interval == 0: 
+            log(step, batch_loss)
 
         batch_loss = 0
         step += 1
