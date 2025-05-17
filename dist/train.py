@@ -7,8 +7,6 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DistributedSampler, DataLoader
 from torchvision import datasets, transforms
 from types import SimpleNamespace
-# REMOVE ME!
-from transformers import set_seed
 from model import Net
 
 def dist_init():
@@ -57,7 +55,6 @@ def get_dataloaders(bs_train=32, bs_test=32):
         dataset_train,
         sampler = DistributedSampler(dataset_train, shuffle=False),
         batch_size = bs_train,
-        shuffle = False,
     )
 
     dataset_test = datasets.MNIST('./data', train=False, download=True, transform=transform)
@@ -81,7 +78,8 @@ micro_batch_size = 2
 train_config.gas = train_config.bs // micro_batch_size
 train_config.bs = train_config.bs // train_config.gas
 
-set_seed(42)
+torch.manual_seed(42)
+
 dist_init()
 log_init(train_config)
 
