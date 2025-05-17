@@ -1,9 +1,11 @@
 import torch 
 import wandb 
+import contextlib
 import torch.nn.functional as F
 import torch.distributed as dist
-from torchvision import datasets, transforms
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DistributedSampler, DataLoader
+from torchvision import datasets, transforms
 from types import SimpleNamespace
 # REMOVE ME!
 from transformers import set_seed
@@ -85,7 +87,11 @@ set_seed(42)
 
 
 dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
+
+# wrap model
 model = Net().to(device)
+model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
+
 optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
 
 log_init(train_config)
@@ -98,10 +104,13 @@ for batch_idx, (data, target) in enumerate(dataloader_train):
     if ( (batch_idx+1) % train_config.gas == 0 
         or batch_idx + 1 == len(dataloader_train) ):
         step_optimizer = True
+        context = contextlib.nullcontext()
     else:
         step_optimizer = False
+        context = model.no_sync()
     
-    output = model(data.to(device))
+    with context:
+        output = model(data.to(device))
     loss = F.nll_loss(output, target.to(device))
     # divide loss by number of gradient acc. steps
     loss = loss / train_config.gas if train_config.gas > 1 else loss
