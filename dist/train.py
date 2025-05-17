@@ -69,16 +69,15 @@ def get_dataloaders(bs_train=32, bs_test=32):
 
     return dataloader_train, dataloader_test
 
-
 device = "cuda"
 train_config = SimpleNamespace(
     log_interval = 50,
     lr = 0.0001,
-    bs = 16,
+    bs = 8,
     gas = 1,
 )
 
-micro_batch_size = 8
+micro_batch_size = 2
 train_config.gas = train_config.bs // micro_batch_size
 train_config.bs = train_config.bs // train_config.gas
 
@@ -86,12 +85,11 @@ set_seed(42)
 dist_init()
 log_init(train_config)
 
-dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
-
-# wrap model
+# load and wrap model
 model = Net().to(device)
 model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
 
+dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
 optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
 
 step, batch_loss = 0, 0
