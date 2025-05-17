@@ -18,27 +18,25 @@ def dist_init():
 def dist_destroy():
     dist.destroy_process_group()
 
-def get_rank():
-    return dist.get_rank()
-
-def get_world_size():
-    return dist.get_world_size()
-
-def is_master():
-    return get_rank() == 0
+def get_rank(): return dist.get_rank()
+def get_world_size(): return dist.get_world_size()
+def is_master(): return get_rank() == 0
 
 def log_init(config):
-    wandb.init(
-        project = "DDP-minimal", 
-        name = f"GLOB-BS-{config.bs * config.gas}_BS-{config.bs}_GA-{config.gas}"
-    ).log_code(".", include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb") or path.endswith(".json"))
+    if is_master():
+        wandb.init(
+            project = "DDP-minimal", 
+            name = f"GLOB-BS-{config.bs * config.gas}_BS-{config.bs}_GA-{config.gas}"
+        ).log_code(".", include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb") or path.endswith(".json"))
 
 def log_finish():
-    wandb.finish()
+    if is_master():
+        wandb.finish()
 
 def log(step, loss):
-    print(f"Step {step} Loss {loss}")
-    wandb.log({"step": step, "loss_train": loss})    
+    if is_master():
+        print(f"Step {step} Loss {loss}")
+        wandb.log({"step": step, "loss_train": loss})    
 
 def get_dataloaders(bs_train=32, bs_test=32):
     transform=transforms.Compose([
@@ -79,12 +77,11 @@ train_config = SimpleNamespace(
     gas = 1,
 )
 
-micro_batch_size = 8
-train_config.gas = train_config.bs // micro_batch_size
-train_config.bs = train_config.bs // train_config.gas
+# micro_batch_size = 8
+# train_config.gas = train_config.bs // micro_batch_size
+# train_config.bs = train_config.bs // train_config.gas
 
 set_seed(42)
-
 
 dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
 
