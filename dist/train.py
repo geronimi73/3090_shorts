@@ -24,6 +24,28 @@ def dist_gather(o):
 
 def is_master(): return dist.get_rank() == 0
 
+def get_dataloaders(bs_train=32, bs_test=32):
+    transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+
+    dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    dataloader_train = DataLoader(
+        dataset_train,
+        sampler = DistributedSampler(dataset_train, shuffle=True),
+        batch_size = bs_train,
+    )
+
+    dataset_test = datasets.MNIST('./data', train=False, download=True, transform=transform)
+    dataloader_test = DataLoader(
+        dataset_test,
+        batch_size = bs_test,
+        shuffle = False,
+    )
+
+    return dataloader_train, dataloader_test
+
 def log_init(config):
     if is_master():
         wandb.init(
@@ -40,38 +62,15 @@ def log_finish():
     if is_master():
         wandb.finish()
 
-def log(step, loss):
+def log(epoch, step, loss):
     loss_all = dist_gather(loss)
     loss_avg = sum(loss_all) / len(loss_all)
 
     if is_master():
-        print(f"Step {step} Loss {loss_avg}")
+        print(f"Step {step}, epoch {epoch}, loss {loss_avg}")
 
         if wandb.run is not None:
             wandb.log({"step": step, "loss_train": loss_avg})    
-
-def get_dataloaders(bs_train=32, bs_test=32):
-    transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
-
-    dataset_train = datasets.MNIST('./data', train=True, download=True, transform=transform)
-    dataloader_train = DataLoader(
-        dataset_train,
-        sampler = DistributedSampler(dataset_train, shuffle=False),
-        batch_size = bs_train,
-    )
-
-    dataset_test = datasets.MNIST('./data', train=False, download=True, transform=transform)
-    dataloader_test = DataLoader(
-        dataset_test,
-        batch_size = bs_test,
-        shuffle = False,
-    )
-
-    return dataloader_train, dataloader_test
-
 
 def train(train_config, device="cuda"):
     # load and wrap model
@@ -111,7 +110,7 @@ def train(train_config, device="cuda"):
 
                 # Log step
                 if step % train_config.log_interval == 0: 
-                    log(step, batch_loss)
+                    log(epoch, step, batch_loss)
 
                 batch_loss = 0
                 step += 1
@@ -123,7 +122,7 @@ def main():
     train_config = SimpleNamespace(
         lr = 0.0001,
         # global batch size will be (bs * gas * num_GPUs)
-        bs = 8,
+        bs = 4,
         gas = 2,       # =gradient accumulation steps
         epochs = 3,
         log_interval = 50,
