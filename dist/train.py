@@ -11,9 +11,9 @@ from model import Net
 
 def dist_init():
     dist.init_process_group(backend='nccl')
-    torch.cuda.set_device(get_rank())
+    torch.cuda.set_device(dist.get_rank())
 
-def dist_destroy():
+def dist_finish():
     dist.destroy_process_group()
 
 def dist_gather(o):
@@ -21,9 +21,8 @@ def dist_gather(o):
     dist.all_gather_object(o_all, o)
     return o_all
 
-def get_rank(): return dist.get_rank()
 def get_world_size(): return dist.get_world_size()
-def is_master(): return get_rank() == 0
+def is_master(): return dist.get_rank() == 0
 
 def log_init(config):
     if is_master():
@@ -40,8 +39,9 @@ def log(step, loss):
     loss_all = dist_gather(loss)
     loss_avg = sum(loss_all) / len(loss_all)
 
-    if is_master():
-        print(f"Step {step} Loss {loss_avg}")
+    print(f"Step {step} Loss {loss_avg}")
+
+    if wandb.run is not None and is_master():
         wandb.log({"step": step, "loss_train": loss_avg})    
 
 def get_dataloaders(bs_train=32, bs_test=32):
@@ -66,61 +66,69 @@ def get_dataloaders(bs_train=32, bs_test=32):
 
     return dataloader_train, dataloader_test
 
-device = "cuda"
-train_config = SimpleNamespace(
-    log_interval = 50,
-    lr = 0.0001,
-    bs = 8,
-    gas = 1,
-)
 
-micro_batch_size = 2
-train_config.gas = train_config.bs // micro_batch_size
-train_config.bs = train_config.bs // train_config.gas
+def train(train_config, device="cuda"):
+    # load and wrap model
+    model = Net().to(device)
+    model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
 
-torch.manual_seed(42)
+    dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
+    optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
 
-dist_init()
-log_init(train_config)
+    step, batch_loss = 0, 0
 
-# load and wrap model
-model = Net().to(device)
-model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
+    for batch_idx, (data, target) in enumerate(dataloader_train):
 
-dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
-optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
-
-step, batch_loss = 0, 0
-
-for batch_idx, (data, target) in enumerate(dataloader_train):
-
-    # step optimizer if last micro batch of batch or last batch in dataloader
-    if ( (batch_idx+1) % train_config.gas == 0 
-        or batch_idx + 1 == len(dataloader_train) ):
-        step_optimizer = True
-    else:
-        step_optimizer = False
-    
-    with model.no_sync() if not step_optimizer else contextlib.nullcontext():
-        output = model(data.to(device))
-    loss = F.nll_loss(output, target.to(device))
-    # divide loss by number of gradient acc. steps
-    loss = loss / train_config.gas if train_config.gas > 1 else loss
-    loss.backward()
-
-    # add up loss of microbatches 
-    batch_loss += loss.item()
-
-    if step_optimizer:
-        optimizer.step()
-        optimizer.zero_grad()
-
-        # Log step
-        if step % train_config.log_interval == 0: 
-            log(step, batch_loss)
-
-        batch_loss = 0
-        step += 1
+        # step optimizer if last micro batch of batch or last batch in dataloader
+        if ( (batch_idx+1) % train_config.gas == 0 
+            or batch_idx + 1 == len(dataloader_train) ):
+            step_optimizer = True
+        else:
+            step_optimizer = False
         
-log_finish()
-dist_destroy()
+        with model.no_sync() if not step_optimizer else contextlib.nullcontext():
+            output = model(data.to(device))
+        loss = F.nll_loss(output, target.to(device))
+        # divide loss by number of gradient acc. steps
+        loss = loss / train_config.gas if train_config.gas > 1 else loss
+        loss.backward()
+
+        # add up loss of microbatches 
+        batch_loss += loss.item()
+
+        if step_optimizer:
+            optimizer.step()
+            optimizer.zero_grad()
+
+            # Log step
+            if step % train_config.log_interval == 0: 
+                log(step, batch_loss)
+
+            batch_loss = 0
+            step += 1
+        
+
+def main():
+    torch.manual_seed(42)
+
+    train_config = SimpleNamespace(
+        log_interval = 50,
+        lr = 0.0001,
+        bs = 32,
+        gas = 1,
+    )
+
+    # micro_batch_size = 2
+    # train_config.gas = train_config.bs // micro_batch_size
+    # train_config.bs = train_config.bs // train_config.gas
+
+    dist_init()
+    log_init(train_config)
+
+    train(train_config)
+
+    log_finish()
+    dist_finish()
+
+if __name__ == '__main__':
+    main()
