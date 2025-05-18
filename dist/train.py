@@ -6,6 +6,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DistributedSampler, DataLoader
 from torchvision import datasets, transforms
+
 from types import SimpleNamespace
 from model import Net
 
@@ -112,10 +113,11 @@ def main():
     torch.manual_seed(42)
 
     train_config = SimpleNamespace(
-        log_interval = 50,
         lr = 0.0001,
         bs = 32,
         gas = 1,
+        epochs = 3,
+        log_interval = 50,
     )
 
     # micro_batch_size = 2
