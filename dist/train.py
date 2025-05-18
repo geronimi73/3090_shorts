@@ -28,7 +28,12 @@ def log_init(config):
     if is_master():
         wandb.init(
             project = "DDP-minimal", 
-            name = f"GLOB-BS-{config.bs * config.gas * dist.get_world_size()}_BS-{config.bs}_GA-{config.gas}_GPUS-{dist.get_world_size()}"
+            name = "GLOB-BS-{bs_glob}_BS-{bs_local}_GA-{gas}_GPUS-{num_gpus}".format(
+                bs_glob = config.bs * config.gas * dist.get_world_size(),
+                bs_local = config.bs,
+                gas = config.gas,
+                num_gpus = dist.get_world_size(),
+            )
         ).log_code(".", include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb") or path.endswith(".json"))
 
 def log_finish():
