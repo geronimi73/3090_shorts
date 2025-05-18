@@ -77,15 +77,15 @@ def test(step, model, dataloader_test, device="cuda"):
     test_loss, correct, num_samples = 0, 0, 0
 
     for data, target in dataloader_test:
-        # unwrap model for evals
         with torch.no_grad():
+            # unwrap model for evals
             output = model.module(data.to(device))
         test_loss += F.nll_loss(output, target.to(device), reduction='sum').item()  # sum up batch loss
         pred = output.argmax(dim=1, keepdim=True).cpu()  # get the index of the max log-probability
         correct += pred.eq(target.cpu().view_as(pred)).sum().item()
         num_samples += target.shape[0]
 
-    # gather from all ranks
+    # gather results from all GPUs
     num_samples = sum([ns for ns in dist_gather(num_samples)])
     correct = sum([c for c in dist_gather(correct)])
     test_loss = sum([tl for tl in dist_gather(test_loss)])
@@ -106,7 +106,7 @@ def test(step, model, dataloader_test, device="cuda"):
 def train(train_config, device="cuda"):
     # load and wrap model
     model = Net().to(device)
-    model = DistributedDataParallel(model, device_ids=[dist.get_rank()])
+    model = DistributedDataParallel(model)
 
     dataloader_train, dataloader_test = get_dataloaders(bs_train=train_config.bs)
     optimizer = torch.optim.AdamW(model.parameters(), train_config.lr)
