@@ -79,13 +79,12 @@ def test(step, model, dataloader_test, device="cuda"):
     test_loss, correct, num_samples = 0, 0, 0
 
     for data, target in dataloader_test:
-        data, target = data.to(device), target.to(device)
         # unwrap model for evals
         with torch.no_grad():
-            output = model.module(data)
-        test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
-        pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
-        correct += pred.eq(target.view_as(pred)).sum().item()
+            output = model.module(data.to(device))
+        test_loss += F.nll_loss(output, target.to(device), reduction='sum').item()  # sum up batch loss
+        pred = output.argmax(dim=1, keepdim=True).cpu()  # get the index of the max log-probability
+        correct += pred.eq(target.cpu().view_as(pred)).sum().item()
         num_samples += target.shape[0]
 
     test_loss /= num_samples
@@ -95,6 +94,8 @@ def test(step, model, dataloader_test, device="cuda"):
 
     if wandb.run is not None:
         wandb.log({"step": step, "accuracy": accuracy, "loss_test": test_loss})    
+
+    model.train()
 
 
 def train(train_config, device="cuda"):
@@ -150,7 +151,7 @@ def main():
     train_config = SimpleNamespace(
         lr = 0.0001,
         # global batch size will be (bs * gas * num_GPUs)
-        bs = 16,
+        bs = 32,
         gas = 1,       # =gradient accumulation steps
         epochs = 3,
         log_interval = 50,
