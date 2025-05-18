@@ -114,15 +114,12 @@ def main():
 
     train_config = SimpleNamespace(
         lr = 0.0001,
-        bs = 32,
-        gas = 1,
+        # global batch size will be (bs * gas * num_GPUs)
+        bs = 8,
+        gas = 2,       # =gradient accumulation steps
         epochs = 3,
         log_interval = 50,
     )
-
-    # micro_batch_size = 2
-    # train_config.gas = train_config.bs // micro_batch_size
-    # train_config.bs = train_config.bs // train_config.gas
 
     dist_init()
     log_init(train_config)
