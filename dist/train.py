@@ -22,14 +22,13 @@ def dist_gather(o):
     dist.all_gather_object(o_all, o)
     return o_all
 
-def get_world_size(): return dist.get_world_size()
 def is_master(): return dist.get_rank() == 0
 
 def log_init(config):
     if is_master():
         wandb.init(
             project = "DDP-minimal", 
-            name = f"GLOB-BS-{config.bs * config.gas * get_world_size()}_BS-{config.bs}_GA-{config.gas}_GPUS-{get_world_size()}"
+            name = f"GLOB-BS-{config.bs * config.gas * dist.get_world_size()}_BS-{config.bs}_GA-{config.gas}_GPUS-{dist.get_world_size()}"
         ).log_code(".", include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb") or path.endswith(".json"))
 
 def log_finish():
@@ -40,10 +39,11 @@ def log(step, loss):
     loss_all = dist_gather(loss)
     loss_avg = sum(loss_all) / len(loss_all)
 
-    print(f"Step {step} Loss {loss_avg}")
+    if is_master():
+        print(f"Step {step} Loss {loss_avg}")
 
-    if wandb.run is not None and is_master():
-        wandb.log({"step": step, "loss_train": loss_avg})    
+        if wandb.run is not None:
+            wandb.log({"step": step, "loss_train": loss_avg})    
 
 def get_dataloaders(bs_train=32, bs_test=32):
     transform=transforms.Compose([
@@ -78,36 +78,39 @@ def train(train_config, device="cuda"):
 
     step, batch_loss = 0, 0
 
-    for batch_idx, (data, target) in enumerate(dataloader_train):
+    for epoch in range(train_config.epochs):
+        dataloader_train.sampler.set_epoch(epoch)
 
-        # step optimizer if last micro batch of batch or last batch in dataloader
-        if ( (batch_idx+1) % train_config.gas == 0 
-            or batch_idx + 1 == len(dataloader_train) ):
-            step_optimizer = True
-        else:
-            step_optimizer = False
-        
-        with model.no_sync() if not step_optimizer else contextlib.nullcontext():
-            output = model(data.to(device))
-        loss = F.nll_loss(output, target.to(device))
-        # divide loss by number of gradient acc. steps
-        loss = loss / train_config.gas if train_config.gas > 1 else loss
-        loss.backward()
+        for batch_idx, (data, target) in enumerate(dataloader_train):
 
-        # add up loss of microbatches 
-        batch_loss += loss.item()
+            # step optimizer if last micro batch of batch or last batch in dataloader
+            if ( (batch_idx+1) % train_config.gas == 0 
+                or batch_idx + 1 == len(dataloader_train) ):
+                step_optimizer = True
+            else:
+                step_optimizer = False
+            
+            with model.no_sync() if not step_optimizer else contextlib.nullcontext():
+                output = model(data.to(device))
+            loss = F.nll_loss(output, target.to(device))
+            # divide loss by number of gradient acc. steps
+            loss = loss / train_config.gas if train_config.gas > 1 else loss
+            loss.backward()
 
-        if step_optimizer:
-            optimizer.step()
-            optimizer.zero_grad()
+            # add up loss of microbatches 
+            batch_loss += loss.item()
 
-            # Log step
-            if step % train_config.log_interval == 0: 
-                log(step, batch_loss)
+            if step_optimizer:
+                optimizer.step()
+                optimizer.zero_grad()
 
-            batch_loss = 0
-            step += 1
-        
+                # Log step
+                if step % train_config.log_interval == 0: 
+                    log(step, batch_loss)
+
+                batch_loss = 0
+                step += 1
+            
 
 def main():
     torch.manual_seed(42)
