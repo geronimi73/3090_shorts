@@ -40,8 +40,8 @@ def get_dataloaders(bs_train=32, bs_test=32):
     dataset_test = datasets.MNIST('./data', train=False, download=True, transform=transform)
     dataloader_test = DataLoader(
         dataset_test,
+        sampler = DistributedSampler(dataset_test, shuffle=False),
         batch_size = bs_test,
-        shuffle = False,
     )
 
     return dataloader_train, dataloader_test
@@ -73,8 +73,6 @@ def log(epoch, step, loss):
             wandb.log({"step": step, "loss_train": loss_avg})    
 
 def test(step, model, dataloader_test, device="cuda"):
-    if not is_master(): return
-
     model.eval()
     test_loss, correct, num_samples = 0, 0, 0
 
@@ -87,13 +85,20 @@ def test(step, model, dataloader_test, device="cuda"):
         correct += pred.eq(target.cpu().view_as(pred)).sum().item()
         num_samples += target.shape[0]
 
-    test_loss /= num_samples
-    accuracy = 100. * correct / num_samples
+    # gather from all ranks
+    num_samples = sum([ns for ns in dist_gather(num_samples)])
+    correct = sum([c for c in dist_gather(correct)])
+    test_loss = sum([tl for tl in dist_gather(test_loss)])
 
-    print(f"Test set: Loss {test_loss:.2f}, accuracy {accuracy:.2f}")
+    # log on master only
+    if is_master():
+        accuracy = 100. * correct / num_samples
+        test_loss /= num_samples
 
-    if wandb.run is not None:
-        wandb.log({"step": step, "accuracy": accuracy, "loss_test": test_loss})    
+        print(f"Test set: Loss {test_loss:.2f}, accuracy {accuracy:.2f}")
+
+        if wandb.run is not None:
+            wandb.log({"step": step, "accuracy": accuracy, "loss_test": test_loss})    
 
     model.train()
 
@@ -113,15 +118,17 @@ def train(train_config, device="cuda"):
 
         for batch_idx, (data, target) in enumerate(dataloader_train):
 
-            # step optimizer if last micro batch of batch or last batch in dataloader
+            # step optimizer if last micro batch of batch OR last batch in dataloader
             if ( (batch_idx+1) % train_config.gas == 0 
                 or batch_idx + 1 == len(dataloader_train) ):
                 step_optimizer = True
             else:
                 step_optimizer = False
             
+            # prevent DDP gradient sync if not stepping
             with model.no_sync() if not step_optimizer else contextlib.nullcontext():
                 output = model(data.to(device))
+
             loss = F.nll_loss(output, target.to(device))
             # divide loss by number of gradient acc. steps
             loss = loss / train_config.gas if train_config.gas > 1 else loss
@@ -138,6 +145,7 @@ def train(train_config, device="cuda"):
                 if step % train_config.log_interval == 0: 
                     log(epoch, step, batch_loss)
 
+                # Eval step
                 if step % train_config.eval_interval == 0: 
                     test(step, model, dataloader_test)
 
@@ -151,7 +159,7 @@ def main():
     train_config = SimpleNamespace(
         lr = 0.0001,
         # global batch size will be (bs * gas * num_GPUs)
-        bs = 32,
+        bs = 8,
         gas = 1,       # =gradient accumulation steps
         epochs = 3,
         log_interval = 50,
