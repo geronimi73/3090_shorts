@@ -22,7 +22,8 @@ def dist_gather(o):
     dist.all_gather_object(o_all, o)
     return o_all
 
-def is_master(): return dist.get_rank() == 0
+def is_master(): 
+    return dist.get_rank() == 0
 
 def get_dataloaders(bs_train=32, bs_test=32):
     transform=transforms.Compose([
@@ -159,7 +160,7 @@ def main():
     train_config = SimpleNamespace(
         lr = 0.0001,
         # global batch size will be (bs * gas * num_GPUs)
-        bs = 8,
+        bs = 32,
         gas = 1,       # =gradient accumulation steps
         epochs = 3,
         log_interval = 50,
