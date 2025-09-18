@@ -69,18 +69,14 @@ from datasets import concatenate_datasets
 import torchvision.transforms as T
 import os 
 
-def augment(image, resizeTo=320):
+def augment(image, cropBox=224):
     augmentation = T.Compose([
         T.RandomHorizontalFlip(p=0.5),
         T.RandomRotation(degrees=10),
         T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-        T.CenterCrop((resizeTo, resizeTo)),
+        T.CenterCrop((cropBox, cropBox)),
     ])
     
-    image = image.resize((
-        round(resizeTo * 1.2),
-        round(resizeTo * 1.2),
-    ))    
     image = augmentation(image)
 
     return image
