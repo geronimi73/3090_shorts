@@ -1,6 +1,24 @@
 import pandas, sqlite3, json, re, argparse, os
 from pathlib import Path
 
+"""
+CSV-RAG: Retrieval-Augmented Generation for CSV data using SQL and LLMs.
+
+This script converts CSV files to SQLite databases and uses LLMs (Local Qwen or Mistral per API)
+with tool calling to answer natural language questions about the data.
+
+Usage Examples:
+    python csv-rag.py --csv_file healthcare-dataset-stroke-data.csv --llm qwen --question "How many rows are there?"
+    python csv-rag.py --csv_file healthcare-dataset-stroke-data.csv --llm mistral-api --question "What's the average age?"
+    
+    # With default settings (Mistral-API on healthcare dataset):
+    python csv-rag.py
+
+Note:
+    For Mistral API, you need to set your API key in the script or use environment variables.
+    Got healthcare-dataset-stroke-data.csv from https://www.kaggle.com/datasets/fedesoriano/stroke-prediction-dataset
+"""
+
 def pandas_to_sqlite(dataframe, db_fn):
     """convert a pandas dataframe to sqlite db"""
 
@@ -173,7 +191,7 @@ Don't forget to wrap the table name in brackets. Example `SELECT * from [table]`
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='RAG with CSV.')
     parser.add_argument('--csv_file', type=str, default="healthcare-dataset-stroke-data.csv", help='Path to the CSV file', )
-    parser.add_argument('--llm', type=str, default='qwen', choices=['mistral-api', 'qwen'], help='LLM to use: "mistral" or "qwen" (default: mistral)')
+    parser.add_argument('--llm', type=str, default='mistral-api', choices=['mistral-api', 'qwen'], help='LLM to use: "mistral" or "qwen" (default: mistral)')
     parser.add_argument('--question', type=str, default='How many women are in the dataset (absolute and percentage)', help='Your question about the CSV file (required)')
     args = parser.parse_args()
 
@@ -182,10 +200,6 @@ if __name__ == "__main__":
 
     csv_fn, llm, question = args.csv_file, args.llm, args.question
     assert os.path.exists(csv_fn), "Input file does not exist"
-
-    # question = "What's the average BMI of the patients with and without hypertension ?"
-    # question = "Is drinking red wine a risk factor for diabetes?"
-    # question = "is hypertension a risk factor for stroke?"
 
     # CSV to SQLite
     df = pandas.read_csv(csv_fn)
