@@ -144,7 +144,6 @@ def ask_agentM(question, client, db_fn, max_iter=5):
             assert assistantMsg.tool_calls
             chat_history.append(assistantMsg)
 
-            # only one tool call, only one tool
             for tool_call in assistantMsg.tool_calls:
                 assert tool_call.function.name ==  "run_sql"
                 tool_response = run_sql(db_fn=db_fn, **json.loads(tool_call.function.arguments))
