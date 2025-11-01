@@ -220,7 +220,8 @@ if __name__ == "__main__":
         
     else:
         from mistralai import Mistral
-        client = Mistral(api_key="xxx")
+
+        client = Mistral(api_key = os.getenv("MISTRAL_API_KEY"))
 
         ask_agentM(question, client, db_fn, max_iter=5)
 
