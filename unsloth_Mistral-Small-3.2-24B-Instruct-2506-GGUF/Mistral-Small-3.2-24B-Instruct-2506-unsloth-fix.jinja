@@ -242,8 +242,10 @@
     {%- elif message['role'] == 'assistant' %}
         {%- if message['content'] is string %}
             {{- message['content'] }}
-        {%- elif message['content'] is iterable %}
+        {%- elif message['content'] is iterable and message['content']|length > 0  %}
             {{- message['content'][0]['text'] }}
+        {%- elif message['content'] is iterable and message['content']|length == 0  %}
+            {#- message['content']: null for some reason arrives as [] here -> Pass  #}
         {%- else %}
             {{- message['content']|string }}
         {%- endif %}
