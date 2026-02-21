@@ -204,7 +204,7 @@ if __name__ == "__main__":
         with open(args.queries_json, 'r') as f:
             queries_file = json.load(f)
 
-        for i, query in enumerate(queries := queries_file.get('complex_queries', []), 1):
+        for i, query in enumerate(queries := queries_file["queries"], 1):
             question = query['question']
 
             print(f"{'='*30}\nQuery {i}/{len(queries)}\n{'='*30}")
