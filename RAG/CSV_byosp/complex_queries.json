@@ -1,0 +1,84 @@
+{
+  "queries": [
+    {
+      "question": "Calculate the odds ratio of having a stroke for smokers vs non-smokers (never smoked), controlling for age 60+. Show the calculation breakdown including counts for each group.",
+      "ground_truth": ["191", "537", "0\\.9[89]"]
+    },
+    {
+      "question": "Compare stroke rates between patients with missing BMI data versus those with valid BMI data, broken down by age decades (40-49, 50-59, 60-69, 70+). Does missingness correlate with stroke risk?",
+      "ground_truth": ["40\\.0", "15\\.8", "24\\.1", "5\\.0[0-9]|5\\.1"]
+    },
+    {
+      "question": "Find all combinations of exactly 3 risk factors (from: age>65, hypertension=1, heart_disease=1, bmi>30, smoking_status='smokes', avg_glucose_level>200) that have a stroke rate above 30%. Rank them by stroke rate and show patient counts.",
+      "ground_truth": ["50\\.0", "37\\.5"]
+    },
+    {
+      "question": "Among stroke patients, what percentage fall into each quartile of glucose levels (0-25%, 25-50%, 50-75%, 75-100%)? Compare this distribution to non-stroke patients. Which quartile shows the biggest difference?",
+      "ground_truth": ["19\\.3"]
+    },
+    {
+      "question": "Create three cohorts: 'healthy' (no hypertension, no heart disease, never smoked), 'moderate risk' (exactly one of hypertension or heart disease, any smoking), 'high risk' (both hypertension and heart disease). Compare their average age, glucose, BMI, and stroke rate.",
+      "ground_truth": ["43\\.[45]", "3\\.1", "70\\.[56]", "20\\.3", "63\\.1", "13\\.[45]"]
+    },
+    {
+      "question": "For each work_type, calculate the stroke rate when controlling for multiple confounders: only include patients aged 55-75, with valid BMI, who are married, and have at least one CVD risk factor. Which work type has the highest adjusted rate?",
+      "ground_truth": ["[Pp]rivate", "9\\.[67]", "531"]
+    },
+    {
+      "question": "Divide patients into 5-year age buckets (45-49, 50-54, 55-59, etc. up to 80+). For each bucket, show the stroke rate and the percentage of patients with hypertension. Does the correlation strengthen with age?",
+      "ground_truth": ["2\\.7", "8\\.[12]", "3\\.9", "15\\.[01]", "7\\.[67]", "12\\.[67]"]
+    },
+    {
+      "question": "Among patients with strokes, what percentage had ZERO traditional risk factors (no hypertension, no heart disease, never smoked, normal BMI 18.5-24.9, glucose <140)? List these 'unexpected' stroke cases with their characteristics.",
+      "ground_truth": ["\\b9\\b"]
+    },
+    {
+      "question": "For each combination of smoking_status and ever_married status, compare male vs female stroke rates. Which combination shows the largest gender disparity, and in which direction?",
+      "ground_truth": ["3\\.4", "formerly"]
+    },
+    {
+      "question": "Test glucose thresholds (>120, >140, >160, >180, >200) as predictors of stroke. For each threshold, calculate sensitivity (% of stroke patients above threshold) and specificity (% of non-stroke patients below threshold). Which threshold gives the best balance?",
+      "ground_truth": ["\\b160\\b", "35\\.7", "88\\.[0-3]"]
+    },
+    {
+      "question": "Create a risk score: age/10 + hypertension*2 + heart_disease*2 + (bmi>30)*1 + (smoking_status='smokes')*1.5 + avg_glucose_level/50. Divide patients into score quintiles and show the stroke rate for each quintile. What's the rate difference between highest and lowest quintile?",
+      "ground_truth": ["0\\.2", "0\\.78", "1\\.6[0-9]", "7\\.3[0-9]", "14\\.3[0-9]"]
+    },
+    {
+      "question": "Among records with missing BMI, what are the demographic patterns? Compare age distribution, gender distribution, work_type, and stroke rates between those with missing vs valid BMI data.",
+      "ground_truth": ["201", "\\b52\\b", "19\\.9", "4[23]\\b", "4\\.[23]"]
+    },
+    {
+      "question": "Compare urban vs rural residents on 5 metrics: average age, % with hypertension, % with heart disease, average glucose, and stroke rate. Then control for age (only 60-70) and recalculate. Does the urban/rural difference persist after age adjustment?",
+      "ground_truth": ["4\\.5\\d*", "5\\.2\\d*", "7\\.4\\d*", "8\\.5\\d*"]
+    },
+    {
+      "question": "Compare three groups: 'never smoked', 'formerly smoked', 'currently smokes'. For each, show stroke rate, average age, average glucose, and average BMI (excluding nulls). Does 'formerly smoked' look more like 'never' or 'currently'?",
+      "ground_truth": ["7\\.9[0-9]", "4\\.7[0-9]", "5\\.3[0-9]", "54\\.9", "46\\.7"]
+    },
+    {
+      "question": "Among patients who have hypertension, what percentage also have heart disease? Among those with heart disease, what percentage have hypertension? Now calculate: among stroke patients with hypertension, what percentage also have heart disease, and vice versa. Compare these conditional probabilities.",
+      "ground_truth": ["12\\.8[0-9]", "23\\.1[0-9]", "19\\.7[0-9]", "27\\.6[0-9]"]
+    },
+    {
+      "question": "Identify patients with extreme glucose levels (>250 or <60). What's their stroke rate compared to normal glucose patients (80-140)? Break this down by whether they have diabetes indicators (glucose>126 fasting equivalent).",
+      "ground_truth": ["\\b20\\.?0?\\b", "3\\.6[0-9]", "3\\.3[0-9]"]
+    },
+    {
+      "question": "Test for interaction between marriage status and gender on stroke risk. Calculate: stroke rate for married males, unmarried males, married females, unmarried females. Is the marriage effect stronger for one gender?",
+      "ground_truth": ["2\\.1[0-9]", "6\\.0[0-9]", "1\\.0[0-9]", "7\\.4[0-9]"]
+    },
+    {
+      "question": "Count total risk factors for each patient (hypertension + heart_disease + (age>65) + (bmi>30) + (smoking_status IN ('smokes','formerly smoked')) + (glucose>140)). Show stroke rate for 0, 1, 2, 3, 4, 5, 6 risk factors. Is there a linear relationship?",
+      "ground_truth": ["0\\.82", "3\\.79", "6\\.4[0-9]", "13\\.4[0-9]", "16\\.6[0-9]", "20\\.4[0-9]", "75\\.0"]
+    },
+    {
+      "question": "Find the most 'protective' subgroup: among patients aged 60+ with at least one CVD risk factor, which combination of residence_type, work_type, and ever_married has the LOWEST stroke rate (minimum 20 patients in subgroup)?",
+      "ground_truth": ["[Uu]rban", "[Ss]elf.employed", "14\\.6[0-9]"]
+    },
+    {
+      "question": "Calculate overall stroke rate for self-employed vs private workers. Then stratify by age groups (under 50, 50-65, over 65) and recalculate rates within each age group. Does the relationship reverse in any age group (Simpson's paradox)?",
+      "ground_truth": ["5\\.0[0-9]", "7\\.9[0-9]", "[Ss]impson|reversal|reverses|paradox"]
+    }
+  ]
+}
