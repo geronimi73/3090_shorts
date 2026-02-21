@@ -1,2 +1,4 @@
 .DS_Store
-RAG/CSV/healthcare-dataset-stroke-data.db
+healthcare-dataset-stroke-data.db
+.env
+system_prompt.txt
