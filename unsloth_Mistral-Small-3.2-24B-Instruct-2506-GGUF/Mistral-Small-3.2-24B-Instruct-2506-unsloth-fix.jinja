@@ -47,8 +47,6 @@
         {%- elif yesterday_year == '1970' %}
             {#- Stop llama_cpp from erroring out #}
             {%- set yesterday_day = '29' %}
-        {%- else %}
-            {{- raise_exception('Unsloth custom template does not support years > 2032. Error year = [' + yesterday_year + ']') }}
         {%- endif %}
     {%- elif yesterday_month == '04' %}
         {%- set yesterday_day = '31' %}
