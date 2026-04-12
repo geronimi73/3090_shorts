@@ -141,7 +141,7 @@ def ask_agent(question, client, db_fn, prompt_file, max_iter=5):
             print(f"Enforcing refine_system_prompt")
             chat_history.append(dict(
                 role="user",
-                content="Before providing your final answer, you MUST call refine_system_prompt. Review your CURRENT system prompt carefully and rewrite it to include any new learnings from this query. For example, store learnings about the data structure, metadata. Do not store the data (or parts of it) in the prompt. Do not store any of the data . Keep it well-organized, concise, and free of redundancy."
+                content="Before providing your final answer, you MUST call refine_system_prompt. Review your CURRENT system prompt carefully and rewrite it to include any new learnings from this query. For example, store learnings about the data structure and common pitfalls. Do not store the raw data, aggregated data or parts of it in the prompt. Keep it well-organized, concise, and free of redundancy."
             ))
         elif assistantMsg.content:
             # Final answer
