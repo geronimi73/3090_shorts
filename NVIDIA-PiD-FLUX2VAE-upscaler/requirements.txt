@@ -1,0 +1,10 @@
+attrs==23.2.0
+einops==0.7.0
+huggingface-hub==0.35.3
+numpy>=1.24.4
+Pillow==9.4.0
+safetensors==0.4.3
+# torch==2.8.0+cu129
+torch
+hf_transfer==0.1.9
+transformers==4.57.1
