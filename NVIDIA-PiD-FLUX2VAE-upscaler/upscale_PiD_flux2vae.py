@@ -41,7 +41,9 @@ FLUX2_VAE      = "ae.safetensors"
 FLUX2_PID_REPO = "nvidia/PiD"
 FLUX2_CHECKPOINTS = {
     "2k":     "checkpoints/PiD_res2k_sr4x_official_flux2_distill_4step/model_ema_bf16.pth",
-    "2kto4k": "checkpoints/PiD_res2kto4k_sr4x_official_flux2_distill_4step/model_ema_bf16.pth",
+    # "2kto4k": "checkpoints/PiD_res2kto4k_sr4x_official_flux2_distill_4step/model_ema_bf16.pth",
+    # June update to checkpoint
+    "2kto4k": "checkpoints/PiD_res2kto4k_sr4x_official_flux2_distill_4step_2606/model_ema_bf16.pth",
 }
 
 
@@ -170,7 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--degrade_sigmas",
         type=float,
         nargs="+",
-        default=[0.0],
+        default=[0.0, 0.1],
         help="Sigma value(s) in [0,1] to inject into the clean latent. "
              "0.0 = clean round-trip.",
     )
@@ -289,7 +291,8 @@ def main():
         image_path, args.input_resolution, keep_input_size=args.keep_input_size
     ).to(dtype=torch.bfloat16, device="cuda")
 
-    clean_latent = model.encode_lq_latent(input_tensor)  # [1, C, zH, zW]
+    with torch.no_grad():
+        clean_latent = model.encode_lq_latent(input_tensor)  # [1, C, zH, zW]
 
     vae_compression = int(model.vae_encoder.spatial_compression_factor)
     vae_h = int(clean_latent.shape[-2]) * vae_compression
@@ -321,24 +324,22 @@ def main():
             "LQ_latent": latent.to(dtype=torch.bfloat16, device="cuda"),
             "degrade_sigma": torch.tensor([float(sigma)], device="cuda", dtype=torch.float32),
         }
-        samples_out = model.generate_samples_from_batch(
-            data_batch,
-            cfg_scale=args.cfg_scale,
-            num_steps=args.pid_inference_steps,
-            seed=args.seed,
-            shift=args.shift,
-            image_size=target_hw,
-        )
-        ours_img = color_match(samples_out[0].float().cpu().clamp(-1, 1), input_save)
+        with torch.no_grad():
+            samples_out = model.generate_samples_from_batch(
+                data_batch,
+                cfg_scale=args.cfg_scale,
+                num_steps=args.pid_inference_steps,
+                seed=args.seed,
+                shift=args.shift,
+                image_size=target_hw,
+            )
+        img_upscaled = color_match(samples_out[0].float().cpu().clamp(-1, 1), input_save)
 
         sigma_suffix = f"_{sigma_label}" if len(args.degrade_sigmas) > 1 else ""
-        ours_path = os.path.join(input_dir, f"{bn}_upscaled{sigma_suffix}.{args.save_format}")
-        save_image(ours_img, ours_path)
+        img_upscaled_path = os.path.join(input_dir, f"{bn}_upscaled{sigma_suffix}.{args.save_format}")
+        save_image(img_upscaled, img_upscaled_path)
 
-        vae_path = os.path.join(debug_dir, "vae_decode", sigma_label, f"{bn}.{args.save_format}")
-        save_image(vae_img.float().cpu().squeeze(0).clamp(-1, 1), vae_path)
-
-        logger.info(f"sigma={sigma:.3f} -> upscaled={ours_path}  vae={vae_path}")
+        logger.info(f"sigma={sigma:.3f} -> upscaled={img_upscaled_path}")
 
     logger.info("Done!")
 
